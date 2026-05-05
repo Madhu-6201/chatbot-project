@@ -54,9 +54,13 @@ user_input = st.text_input("You:")
 
 if user_input:
     tag = predict_class(user_input)
+
+     st.write("Predicted tag:", tag) 
     
     if tag == "unknown":
         st.write("Bot: Sorry, I didn't understand 😅")
     else:
         response = get_response(tag)
         st.write("Bot:", response)
+
+        
