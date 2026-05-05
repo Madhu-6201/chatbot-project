@@ -5,12 +5,10 @@ import json
 import nltk
 from nltk.stem import WordNetLemmatizer
 
-# -------------------- Setup --------------------
+# -------------------- PAGE CONFIG --------------------
 st.set_page_config(page_title="AI Chatbot", page_icon="🤖")
 
-lemmatizer = WordNetLemmatizer()
-
-# Download NLTK data (important for deployment)
+# -------------------- NLTK SETUP --------------------
 @st.cache_resource
 def load_nltk():
     nltk.download('punkt')
@@ -19,7 +17,9 @@ def load_nltk():
 
 load_nltk()
 
-# -------------------- Load Files --------------------
+lemmatizer = WordNetLemmatizer()
+
+# -------------------- LOAD FILES --------------------
 @st.cache_resource
 def load_files():
     model = pickle.load(open('model.pkl', 'rb'))
@@ -33,7 +33,7 @@ def load_files():
 
 model, words, classes, data = load_files()
 
-# -------------------- Text Cleaning --------------------
+# -------------------- TEXT CLEANING --------------------
 def clean_text(text):
     text = text.lower().strip()
     
@@ -46,7 +46,7 @@ def clean_text(text):
     
     return replacements.get(text, text)
 
-# -------------------- NLP Functions --------------------
+# -------------------- NLP FUNCTIONS --------------------
 def bag_of_words(sentence):
     sentence = clean_text(sentence)
     sentence_words = nltk.word_tokenize(sentence)
@@ -65,7 +65,6 @@ def predict_class(sentence):
     
     max_prob = max(probs)
     
-    # Confidence threshold
     if max_prob < 0.3:
         return "unknown"
     
@@ -76,24 +75,50 @@ def get_response(tag):
         if intent['tag'] == tag:
             return np.random.choice(intent['responses'])
 
-# -------------------- UI --------------------
+# -------------------- UI DESIGN --------------------
 st.title("🤖 AI Chatbot")
-st.write("Type your message below:")
+st.caption("Chat like WhatsApp 💬")
 
-user_input = st.text_input("You:")
+# Clear chat button
+if st.button("🗑 Clear Chat"):
+    st.session_state.messages = []
+
+# Initialize chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Display chat history
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# Chat input
+user_input = st.chat_input("Type your message...")
 
 if user_input:
+    # Show user message
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    # Bot response
     try:
         tag = predict_class(user_input)
-        
-        # Debug line (you can remove later)
-        st.write("Predicted tag:", tag)
+
+        # Debug (optional - remove later)
+        # st.write("Predicted:", tag)
 
         if tag == "unknown":
-            st.write("Bot: Sorry, I didn't understand 😅")
+            bot_response = "Sorry, I didn't understand 😅"
         else:
-            response = get_response(tag)
-            st.write("Bot:", response)
+            bot_response = get_response(tag)
 
     except Exception as e:
-        st.error(f"Error: {e}")
+        bot_response = f"Error: {e}"
+
+    # Show bot response
+    with st.chat_message("assistant"):
+        st.markdown(bot_response)
+
+    st.session_state.messages.append({"role": "assistant", "content": bot_response})
