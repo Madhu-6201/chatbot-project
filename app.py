@@ -1,3 +1,7 @@
+import nltk
+nltk.download('punkt')
+nltk.download('punkt_tab')
+nltk.download('wordnet')
 import streamlit as st
 import pickle
 import numpy as np
