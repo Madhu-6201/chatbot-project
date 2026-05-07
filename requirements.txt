@@ -3,4 +3,4 @@ sentence-transformers
 scikit-learn
 openai
 numpy
-google-generativeai
+google-generativeai>=0.7.0
