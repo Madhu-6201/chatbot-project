@@ -1,124 +1,82 @@
 import streamlit as st
 import pickle
-import numpy as np
 import json
+import random
 import nltk
+import re
+
 from nltk.stem import WordNetLemmatizer
-
-# -------------------- PAGE CONFIG --------------------
-st.set_page_config(page_title="AI Chatbot", page_icon="🤖")
-
-# -------------------- NLTK SETUP --------------------
-@st.cache_resource
-def load_nltk():
-    nltk.download('punkt')
-    nltk.download('punkt_tab')
-    nltk.download('wordnet')
-
-load_nltk()
 
 lemmatizer = WordNetLemmatizer()
 
-# -------------------- LOAD FILES --------------------
-@st.cache_resource
-def load_files():
-    model = pickle.load(open('model.pkl', 'rb'))
-    words = pickle.load(open('words.pkl', 'rb'))
-    classes = pickle.load(open('classes.pkl', 'rb'))
-    
-    with open('intents.json') as file:
-        data = json.load(file)
-    
-    return model, words, classes, data
+# Load files
+model = pickle.load(open('model.pkl', 'rb'))
 
-model, words, classes, data = load_files()
+vectorizer = pickle.load(open('vectorizer.pkl', 'rb'))
 
-# -------------------- TEXT CLEANING --------------------
+encoder = pickle.load(open('label_encoder.pkl', 'rb'))
+
+with open('intents.json') as file:
+    data = json.load(file)
+
+# Clean text
 def clean_text(text):
-    text = text.lower().strip()
     
-    replacements = {
-        "hii": "hi",
-        "heyy": "hey",
-        "hlo": "hello",
-        "hy": "hi"
-    }
+    text = text.lower()
     
-    return replacements.get(text, text)
+    text = re.sub(r'(.)\1+', r'\1\1', text)
+    
+    words = nltk.word_tokenize(text)
+    
+    words = [
+        lemmatizer.lemmatize(word)
+        for word in words
+        if word.isalnum()
+    ]
+    
+    return " ".join(words)
 
-# -------------------- NLP FUNCTIONS --------------------
-def bag_of_words(sentence):
-    sentence = clean_text(sentence)
-    sentence_words = nltk.word_tokenize(sentence)
-    sentence_words = [lemmatizer.lemmatize(word.lower()) for word in sentence_words]
+# Predict
+def predict_intent(text):
     
-    bag = [0]*len(words)
-    for s in sentence_words:
-        for i, w in enumerate(words):
-            if w == s:
-                bag[i] = 1
-    return np.array(bag)
+    cleaned = clean_text(text)
+    
+    vector = vectorizer.transform([cleaned]).toarray()
+    
+    prediction = model.predict(vector)[0]
+    
+    probabilities = model.predict_proba(vector)[0]
+    
+    confidence = max(probabilities)
+    
+    tag = encoder.inverse_transform([prediction])[0]
+    
+    return tag, confidence
 
-def predict_class(sentence):
-    bow = bag_of_words(sentence)
-    probs = model.predict_proba([bow])[0]
-    
-    max_prob = max(probs)
-    
-    if max_prob < 0.3:
-        return "unknown"
-    
-    return classes[np.argmax(probs)]
-
+# Response
 def get_response(tag):
+    
     for intent in data['intents']:
+        
         if intent['tag'] == tag:
-            return np.random.choice(intent['responses'])
+            
+            return random.choice(intent['responses'])
 
-# -------------------- UI DESIGN --------------------
+# Streamlit UI
 st.title("🤖 AI Chatbot")
-st.caption("Chat like WhatsApp 💬")
 
-# Clear chat button
-if st.button("🗑 Clear Chat"):
-    st.session_state.messages = []
-
-# Initialize chat history
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# Display chat history
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-# Chat input
-user_input = st.chat_input("Type your message...")
+user_input = st.text_input("You:")
 
 if user_input:
-    # Show user message
-    st.session_state.messages.append({"role": "user", "content": user_input})
     
-    with st.chat_message("user"):
-        st.markdown(user_input)
-
-    # Bot response
-    try:
-        tag = predict_class(user_input)
-
-        # Debug (optional - remove later)
-        # st.write("Predicted:", tag)
-
-        if tag == "unknown":
-            bot_response = "Sorry, I didn't understand 😅"
-        else:
-            bot_response = get_response(tag)
-
-    except Exception as e:
-        bot_response = f"Error: {e}"
-
-    # Show bot response
-    with st.chat_message("assistant"):
-        st.markdown(bot_response)
-
-    st.session_state.messages.append({"role": "assistant", "content": bot_response})
+    tag, confidence = predict_intent(user_input)
+    
+    if confidence > 0.4:
+        
+        response = get_response(tag)
+    
+    else:
+        
+        response = "Sorry 😅 I didn't understand."
+    
+    st.write("Bot:", response)
