@@ -30,6 +30,22 @@ def load_resources():
 # Initialize resources
 data, model, pattern_embeddings, tags = load_resources()
 
+# --- SIDEBAR ADDED HERE ---
+with st.sidebar:
+    st.title("🤖 Pandora AI")
+    st.markdown("""
+    **About Pandora:**
+    I am a therapeutic assistant designed to listen and support you. 
+    
+    *Note: I am an AI, not a replacement for professional mental healthcare.*
+    """)
+    if st.button("Clear Conversation"):
+        st.session_state.messages = []
+        # 'intro_given' error na de isliye check handle kiya hai
+        if 'intro_given' in st.session_state:
+            st.session_state.intro_given = False
+        st.rerun()
+
 # 3. Logic Functions
 def predict_intent(user_input):
     user_embedding = model.encode([user_input])
@@ -52,6 +68,7 @@ def get_ai_response(user_input):
         return response.choices[0].message.content
     except Exception as e:
         return f"AI Error: Please check your OpenAI API key. {str(e)}"
+        
 
 # 4. Streamlit UI
 st.set_page_config(page_title="Hybrid Chatbot", page_icon="🤖")
