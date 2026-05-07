@@ -1,5 +1,10 @@
 import nltk
 nltk.download('punkt_tab')
+
+# Download the required resources for the lemmatizer
+nltk.download('wordnet')
+nltk.download('omw-1.4')
+nltk.download('punkt') # Common to need this for tokenization as well
 import streamlit as st
 import pickle
 import json
