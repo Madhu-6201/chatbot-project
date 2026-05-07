@@ -60,7 +60,9 @@ def get_response(tag):
 def get_ai_response(user_input):
     try:
         # Gemini model call
-        gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        gemini_model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
+       
         response = gemini_model.generate_content(f"You are Pandora, a kind therapeutic assistant. User says: {user_input}")
         return response.text
     except Exception as e:
