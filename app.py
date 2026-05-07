@@ -1,88 +1,85 @@
 import streamlit as st
-import json
 import random
-import numpy as np
-import pickle
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
-from openai import OpenAI
 
-# 1. Setup OpenAI Client 
-# Tip: Use st.secrets for production instead of hardcoding keys
-client = OpenAI(api_key="YOUR_API_KEY")
+# --- PAGE CONFIG ---
+st.set_page_config(page_title="Pandora AI", page_icon="🤖", layout="centered")
 
-# 2. Optimized Data Loading (Using Cache)
-@st.cache_resource
-def load_resources():
-    # Load intents
-    with open('intents.json') as f:
-        intents_data = json.load(f)
-    
-    # Load Model
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-    
-    # Load Pickled files
-    pattern_embeddings = pickle.load(open('embeddings.pkl', 'rb'))
-    tags = pickle.load(open('tags.pkl', 'rb'))
-    
-    return intents_data, model, pattern_embeddings, tags
-
-# Initialize resources
-data, model, pattern_embeddings, tags = load_resources()
-
-# 3. Logic Functions
-def predict_intent(user_input):
-    user_embedding = model.encode([user_input])
-    similarities = cosine_similarity(user_embedding, pattern_embeddings)
-    best_idx = np.argmax(similarities)
-    return tags[best_idx], similarities[0][best_idx]
-
-def get_response(tag):
-    for intent in data['intents']:
-        if intent['tag'] == tag:
-            return random.choice(intent['responses'])
-    return "I'm not sure how to help with that."
-
-def get_ai_response(user_input):
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": user_input}]
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"AI Error: Please check your OpenAI API key. {str(e)}"
-
-# 4. Streamlit UI
-st.set_page_config(page_title="Hybrid Chatbot", page_icon="🤖")
-st.title("🤖 Hybrid AI Chatbot")
-
-# Initialize Chat History
+# --- INITIALIZING SESSION STATE (MEMORY) ---
+# This keeps the chat history alive even when the app refreshes
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "user_name" not in st.session_state:
+    st.session_state.user_name = None
+if "intro_given" not in st.session_state:
+    st.session_state.intro_given = False
 
-# Display Chat History
+# --- SIDEBAR ---
+with st.sidebar:
+    st.title("🤖 Pandora AI")
+    st.markdown("""
+    **About Pandora:**
+    I am a therapeutic assistant designed to listen and support you. 
+    
+    *Note: I am an AI, not a replacement for professional mental healthcare.*
+    """)
+    if st.button("Clear Conversation"):
+        st.session_state.messages = []
+        st.session_state.intro_given = False
+        st.rerun()
+
+# --- MAIN INTERFACE ---
+st.title("Pandora: Your Personal AI")
+
+# Display previous chat messages
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# User Input
-if prompt := st.chat_input("How can I help you today?"):
-    # Add user message to history
+# --- CHAT INPUT & LOGIC ---
+if prompt := st.chat_input("How are you feeling today?"):
+    # 1. Display User Message
+    st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
 
-    # Generate Response
-    tag, confidence = predict_intent(prompt)
+    # 2. Logic to generate a smart response
+    user_text = prompt.lower()
     
-    # Logic: If confidence is high, use local intents. Else, use OpenAI.
-    if confidence > 0.5:
-        full_response = get_response(tag)
-    else:
-        full_response = get_ai_response(prompt)
+    # Logic: Capture Name
+    if "my name is" in user_text:
+        name = prompt.split("is")[-1].strip().capitalize()
+        st.session_state.user_name = name
+        response = f"It's lovely to meet you, {name}! How has your day been so far?"
+    
+    # Logic: Avoid Repetitive Introductions
+    elif any(word in user_text for word in ["who are you", "your name", "what are you"]):
+        if st.session_state.intro_given:
+            response = "As I mentioned, I'm Pandora. I'm here to chat and support you however I can!"
+        else:
+            response = "I'm Pandora, your Personal Therapeutic AI Assistant. I'm here to listen."
+            st.session_state.intro_given = True
+            
+    # Logic: Handling Sadness/Empathy
+    elif any(word in user_text for word in ["sad", "not well", "bad", "depressed", "struggling"]):
+        response = "I'm truly sorry to hear that you're feeling this way. Would you like to talk more about what's on your mind?"
+        
+    # Logic: General Greetings
+    elif any(word in user_text for word in ["hi", "hello", "hey"]):
+        if st.session_state.user_name:
+            response = f"Hello again, {st.session_state.user_name}! How can I help you right now?"
+        else:
+            response = "Hello! I'm Pandora. How are you feeling today?"
 
-    # Add bot response to history
+    # Default Response
+    else:
+        responses = [
+            "I'm listening. Please tell me more.",
+            "I see. How does that make you feel?",
+            "That's interesting. Can you elaborate on that?",
+            "I'm here for you. What else is on your mind?"
+        ]
+        response = random.choice(responses)
+
+    # 3. Display & Save Assistant Message
     with st.chat_message("assistant"):
-        st.markdown(full_response)
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+        st.markdown(response)
+    st.session_state.messages.append({"role": "assistant", "content": response})
