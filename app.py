@@ -5,47 +5,43 @@ import numpy as np
 import pickle
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from openai import OpenAI
+import google.generativeai as genai  # OpenAI ki jagah Gemini use kar rahe hain
 
-st.set_page_config(page_title="Pandora AI", page_icon="🤖")
-
-# 1. Setup OpenAI Client 
-# Tip: Use st.secrets for production instead of hardcoding keys
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# 1. Setup Gemini Client 
+# Streamlit Secrets se GOOGLE_API_KEY uthayega
+if "GOOGLE_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+else:
+    st.error("Secrets mein GOOGLE_API_KEY nahi mili. Please check Streamlit Settings!")
+    st.stop()
 
 # 2. Optimized Data Loading (Using Cache)
 @st.cache_resource
 def load_resources():
-    # Load intents
+    # Load intents (make sure intents.json is in your repo)
     with open('intents.json') as f:
         intents_data = json.load(f)
     
     # Load Model
     model = SentenceTransformer('all-MiniLM-L6-v2')
     
-    # Load Pickled files
+    # Load Pickled files (make sure these exist in your repo)
     pattern_embeddings = pickle.load(open('embeddings.pkl', 'rb'))
     tags = pickle.load(open('tags.pkl', 'rb'))
     
     return intents_data, model, pattern_embeddings, tags
 
-# Initialize resources
 data, model, pattern_embeddings, tags = load_resources()
 
-# --- SIDEBAR ADDED HERE ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.title("🤖 Pandora AI")
     st.markdown("""
     **About Pandora:**
     I am a therapeutic assistant designed to listen and support you. 
-    
-    *Note: I am an AI, not a replacement for professional mental healthcare.*
     """)
     if st.button("Clear Conversation"):
         st.session_state.messages = []
-        # 'intro_given' error na de isliye check handle kiya hai
-        if 'intro_given' in st.session_state:
-            st.session_state.intro_given = False
         st.rerun()
 
 # 3. Logic Functions
@@ -63,17 +59,14 @@ def get_response(tag):
 
 def get_ai_response(user_input):
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": user_input}]
-        )
-        return response.choices[0].message.content
+        # Gemini model call
+        gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+        response = gemini_model.generate_content(f"You are Pandora, a kind therapeutic assistant. User says: {user_input}")
+        return response.text
     except Exception as e:
-        return f"AI Error: Please check your OpenAI API key. {str(e)}"
-        
+        return f"AI Error: Please check your Gemini API key. {str(e)}"
 
 # 4. Streamlit UI
-st.set_page_config(page_title="Hybrid Chatbot", page_icon="🤖")
 st.title("🤖 Hybrid AI Chatbot")
 
 # Initialize Chat History
@@ -87,7 +80,6 @@ for message in st.session_state.messages:
 
 # User Input
 if prompt := st.chat_input("How can I help you today?"):
-    # Add user message to history
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -95,13 +87,12 @@ if prompt := st.chat_input("How can I help you today?"):
     # Generate Response
     tag, confidence = predict_intent(prompt)
     
-    # Logic: If confidence is high, use local intents. Else, use OpenAI.
-    if confidence > 0.5:
+    # Logic: High confidence = local intents, Low confidence = Gemini
+    if confidence > 0.6:  # Threshold thoda increase kiya hai accuracy ke liye
         full_response = get_response(tag)
     else:
         full_response = get_ai_response(prompt)
 
-    # Add bot response to history
     with st.chat_message("assistant"):
         st.markdown(full_response)
     st.session_state.messages.append({"role": "assistant", "content": full_response})
