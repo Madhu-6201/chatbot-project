@@ -7,7 +7,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import google.generativeai as genai  # OpenAI ki jagah Gemini use kar rahe hain
 
-# 1. Setup Gemini Client 
+# 1. Setup Gemini Client 1
 # Streamlit Secrets se GOOGLE_API_KEY uthayega
 if "GOOGLE_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
