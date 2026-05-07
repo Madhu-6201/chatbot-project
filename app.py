@@ -7,9 +7,11 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from openai import OpenAI
 
+st.set_page_config(page_title="Pandora AI", page_icon="🤖")
+
 # 1. Setup OpenAI Client 
 # Tip: Use st.secrets for production instead of hardcoding keys
-client = OpenAI(api_key="YOUR_API_KEY")
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # 2. Optimized Data Loading (Using Cache)
 @st.cache_resource
