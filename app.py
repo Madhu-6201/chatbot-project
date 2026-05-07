@@ -30,6 +30,21 @@ def load_resources():
 # Initialize resources
 data, model, pattern_embeddings, tags = load_resources()
 
+# --- SIDEBAR ---
+with st.sidebar:
+    st.title("🤖 Pandora AI")
+    st.markdown("""
+    **About Pandora:**
+    I am a therapeutic assistant designed to listen and support you. 
+    
+    *Note: I am an AI, not a replacement for professional mental healthcare.*
+    """)
+    if st.button("Clear Conversation"):
+        st.session_state.messages = []
+        st.session_state.intro_given = False
+        st.rerun()
+
+
 # 3. Logic Functions
 def predict_intent(user_input):
     user_embedding = model.encode([user_input])
