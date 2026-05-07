@@ -57,7 +57,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # 3. Naya Input handle karein
-if prompt := st.chat_input("Yahan kuch likhein..."):
+if prompt := st.chat_input("Write here..."):
     # User message
     with st.chat_message("user"):
         st.markdown(prompt)
