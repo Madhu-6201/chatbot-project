@@ -19,6 +19,10 @@
         "patterns": ["Good night"],
         "responses": ["Good night. Get some proper sleep", "Good night. Sweet dreams."]
     },
+    {"tag": "what are you",
+        "patterns":["what are you doing"],
+        "responses":["Nothing! What about you"]
+    },
     {"tag": "goodbye",
      "patterns": ["Bye", "See you later", "Goodbye", "Au revoir", "Sayonara", "ok bye", "Bye then", "Fare thee well"],
      "responses": ["See you later.", "Have a nice day.", "Bye! Come back again.", "I'll see you soon."]
